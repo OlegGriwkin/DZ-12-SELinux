@@ -7,107 +7,178 @@
 
 переключатели setsebool, добавление нестандартного порта в имеющийся тип, формирование и установка модуля SELinux##
 
-
+----------------------------------------------
 Способ #1
+
 c помощью  переключателей setsebool
 
-# проверим, что в ОС отключен файервол
-systemctl status firewalld
+проверим, что в ОС отключен файервол
 
-# проверить, что конфигурация nginx настроена без ошибок
-nginx -t
+**systemctl status firewalld**
 
-# проверим режим работы SELinux
-getenforce
+проверить, что конфигурация nginx настроена без ошибок
 
-Результат: режим Enforcing. Данный режим означает, что SELinux будет блокировать запрещенную активность.
+**nginx -t**
 
-#Разрешим в SELinux работу nginx на порту TCP 4881 c помощью
-переключателей setsebool (для этого в файле audit.log находим время в которое был записан лог "type=AVC nsg=audit(1642583294.259:797)" 
+проверим режим работы SELinux
 
-#Включим параметр nis_enabled и перезапустим nginx
-setsebool -P nis_enabled on
-systemctl restart nginx
-systemctl status nginx
+**getenforce**
 
-#Проверить статус параметра
-getsebool -a | grep nis_enabled
+Результат: **режим Enforcing**. Данный режим означает, что SELinux будет блокировать запрещенную активность.
 
-#Вернём запрет работы nginx на порту 4881 обратно
-setsebool -P nis_enabled off
+Разрешим в SELinux работу nginx на порту TCP 4881 c помощью переключателей setsebool (для этого в файле audit.log находим время в которое был записан лог "type=AVC nsg=audit(1642583294.259:797)" 
 
+Включим параметр nis_enabled и перезапустим nginx
+
+**setsebool -P nis_enabled on**
+
+**systemctl restart nginx**
+
+**systemctl status nginx**
+
+Проверить статус параметра
+
+**getsebool -a | grep nis_enabled**
+
+Вернём запрет работы nginx на порту 4881 обратно
+
+**setsebool -P nis_enabled off**
+
+----------------------------------------------
 
 Способ #2
+
 c помощью добавления нестандартного порта в имеющийся тип
-#установка пакета policycoreutils-python
-yum -y install policycoreutils-python
-#Поиск имеющегося типа, для http трафика
-semanage port -l | grep http
-#Добавим порт в тип http_port_t:
-semanage port -a -t http_port_t -p tcp 4881
-#Проверем
-semanage port -l | grep http_port_t
-#перезапустим службу nginx и проверим её работу
-systemctl restart nginx
-systemctl status nginx
-#Удаляем нестандартный порт из имеющегося типа
-semanage port -d -t http_port_t -p tcp 4881
-#Проверяем
-semanage port -l | grep http_port_t
-#перезапустим службу nginx и проверим её работу
-systemctl restart nginx
-systemctl status nginx
 
+установка пакета policycoreutils-python
 
+**yum -y install policycoreutils-python**
+
+Поиск имеющегося типа, для http трафика
+
+**semanage port -l | grep http**
+
+Добавим порт в тип http_port_t:
+
+**semanage port -a -t http_port_t -p tcp 4881**
+
+Проверем
+
+**semanage port -l | grep http_port_t**
+
+перезапустим службу nginx и проверим её работу
+
+**systemctl restart nginx**
+
+**systemctl status nginx**
+
+Удаляем нестандартный порт из имеющегося типа
+
+**semanage port -d -t http_port_t -p tcp 4881**
+
+Проверяем
+
+**semanage port -l | grep http_port_t**
+
+перезапустим службу nginx и проверим её работу
+
+**systemctl restart nginx**
+
+**systemctl status nginx**
+
+----------------------------------------------
 Способ #3
-c помощью формирования и установки модуля SELinux
-#Запустим nginx
-systemctl start nginx 
-# утилитой audit2allow создаем модуль, разрешающий работу nginx на нестандартном порту:
-grep nginx /var/log/audit/audit.log | audit2allow -M nginx
-#применяем данный модуль
-semodule -i nginx.pp
-#запустим службу nginx и проверим её работу
-systemctl restart nginx
-systemctl status nginx
-#Просмотр всех установленных модулей
-semodule -l
-#удаление модуля
-semodule -r nginx
 
--------------------------------------------------------------------------------------
--------------------------------------------------------------------------------------
+c помощью формирования и установки модуля SELinux
+
+Запустим nginx
+
+**systemctl start nginx **
+
+утилитой audit2allow создаем модуль, разрешающий работу nginx на нестандартном порту:
+
+**grep nginx /var/log/audit/audit.log | audit2allow -M nginx**
+
+применяем данный модуль
+
+**semodule -i nginx.pp**
+
+запустим службу nginx и проверим её работу
+
+**systemctl restart nginx**
+
+**systemctl status nginx**
+
+Просмотр всех установленных модулей
+
+**semodule -l**
+
+удаление модуля
+
+**semodule -r nginx**
+
+----------------------------------------------
+
+
 
 ##Задание: Обеспечение работоспособности приложения при включенном SELinux##
-#клонирование репозитория
-git clone https://github.com/mbfx/otus-linux-adm.git
-# из каталога otus-linux-adm/selinux_dns_problems развернём 2 ВМ с помощью vagrant
-vagrant up
-#Подключимся к клиенту
-vagrant ssh client
-#Установка bind-utils (для работы nsupdate)
-yum install bind-utils
-#Попробуем внести изменения в зону
-nsupdate -k /etc/named.zonetransfer.key
-#Установка policycoreutils-devel
-yum install policycoreutils-devel
-#смотрим логи SELinux, чтобы понять в чём может быть проблема
-cat /var/log/audit/audit.log | audit2why
-#Подключаемся к серверу ns01
-vagrant ssh ns01
-#Установка policycoreutils-devel
-sudo -i
-yum install policycoreutils-devel
-#проверим логи SELinux
-cat /var/log/audit/audit.log | audit2why
-#
-sudo semanage fcontext -l | grep named
-#Изменим тип контекста безопасности для каталога /etc/named
-sudo chcon -R -t named_zone_t /etc/named
-ls -laZ /etc/named
-#снова внести изменения с клиента
-nsupdate -k /etc/named.zonetransfer.key
-#перезапускаем хосты
-systemctl reboot
+
+клонирование репозитория
+
+**git clone https://github.com/mbfx/otus-linux-adm.git**
+
+из каталога otus-linux-adm/selinux_dns_problems развернём 2 ВМ с помощью vagrant
+
+**vagrant up**
+
+Подключимся к клиенту
+
+**vagrant ssh client**
+
+Установка bind-utils (для работы nsupdate)
+
+**yum install bind-utils**
+
+Попробуем внести изменения в зону
+
+**nsupdate -k /etc/named.zonetransfer.key**
+
+Установка policycoreutils-devel
+
+**yum install policycoreutils-devel**
+
+смотрим логи SELinux, чтобы понять в чём может быть проблема
+
+**cat /var/log/audit/audit.log | audit2why**
+
+Подключаемся к серверу ns01
+
+**vagrant ssh ns01**
+
+Установка policycoreutils-devel
+
+**sudo -i**
+
+**yum install policycoreutils-devel**
+
+проверим логи SELinux
+
+**cat /var/log/audit/audit.log | audit2why**
+
+**sudo semanage fcontext -l | grep named**
+
+Изменим тип контекста безопасности для каталога /etc/named
+
+**sudo chcon -R -t named_zone_t /etc/named**
+
+**ls -laZ /etc/named**
+
+снова внести изменения с клиента
+
+**nsupdate -k /etc/named.zonetransfer.key**
+
+перезапускаем хосты
+
+**systemctl reboot**
 
 ####################
