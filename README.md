@@ -12,10 +12,13 @@ c помощью  переключателей setsebool
 
 # проверим, что в ОС отключен файервол
 systemctl status firewalld
+
 # проверить, что конфигурация nginx настроена без ошибок
 nginx -t
+
 # проверим режим работы SELinux
 getenforce
+
 Результат: режим Enforcing. Данный режим означает, что SELinux будет блокировать запрещенную активность.
 
 #Разрешим в SELinux работу nginx на порту TCP 4881 c помощью
@@ -25,8 +28,10 @@ getenforce
 setsebool -P nis_enabled on
 systemctl restart nginx
 systemctl status nginx
+
 #Проверить статус параметра
 getsebool -a | grep nis_enabled
+
 #Вернём запрет работы nginx на порту 4881 обратно
 setsebool -P nis_enabled off
 
