@@ -93,7 +93,7 @@ c помощью формирования и установки модуля SEL
 
 Запустим nginx
 
-**systemctl start nginx **
+**systemctl start nginx**
 
 утилитой audit2allow создаем модуль, разрешающий работу nginx на нестандартном порту:
 
